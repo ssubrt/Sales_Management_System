@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import React, { useState } from 'react';
 
 export default function Sidebar() {
@@ -17,9 +18,7 @@ export default function Sidebar() {
         {/* Inner Content - Fifth Image: gap: 8px */}
         <div className="flex items-center gap-[8px]">
           <div className="w-5 h-5 bg-black rounded flex items-center justify-center text-white">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-              <path d="M7 17L17 7M17 7H7M17 7V17" />
-            </svg>
+            <Image src="/Logo.svg" alt="User Icon" width={22} height={22} />
           </div>
           <div className="flex flex-col">
             <span className="text-[13px] font-semibold text-gray-900 leading-tight">Vault</span>
