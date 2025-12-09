@@ -8,7 +8,7 @@ import SortDropdown from '@/components/SortDropdown';
 import TransactionTable from '@/components/TransactionTable';
 import Pagination from '@/components/Pagination';
 import SummaryCard from '@/components/SummaryCard';
-import { loadSalesData } from '@/lib/csvParser';
+import { loadSalesData } from '@/lib/apiService';
 import { processTransactions, extractAvailableFilters } from '@/lib/dataService';
 import { SalesTransaction, ActiveFilters, SortOption } from '@/lib/types';
 

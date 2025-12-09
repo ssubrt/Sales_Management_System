@@ -4,71 +4,187 @@
 1. [Overview](#overview)
 2. [System Architecture](#system-architecture)
 3. [Technology Stack](#technology-stack)
-4. [Project Structure](#project-structure)
-5. [Data Flow](#data-flow)
-6. [Component Architecture](#component-architecture)
-7. [State Management](#state-management)
-8. [Performance Optimizations](#performance-optimizations)
-9. [Key Design Decisions](#key-design-decisions)
-10. [Future Enhancements](#future-enhancements)
+4. [Database Schema](#database-schema)
+5. [Project Structure](#project-structure)
+6. [Data Flow](#data-flow)
+7. [Component Architecture](#component-architecture)
+8. [API Layer](#api-layer)
+9. [State Management](#state-management)
+10. [Performance Optimizations](#performance-optimizations)
+11. [Key Design Decisions](#key-design-decisions)
+12. [Future Enhancements](#future-enhancements)
 
 ---
 
 ## Overview
 
-The Sales Management System is a client-side web application built with Next.js that provides comprehensive sales transaction management capabilities. It processes CSV data locally, offering real-time search, multi-dimensional filtering, sorting, and pagination features without requiring a backend database.
+The Sales Management System is a **full-stack web application** built with **Next.js 16**, **PostgreSQL**, and **Prisma 7 ORM** that provides comprehensive sales transaction management capabilities. The system uses a modern three-tier architecture with server-side data persistence, RESTful API endpoints, and a responsive React-based frontend.
 
 ### Key Capabilities
-- **Data Processing**: Client-side CSV parsing and processing of 100+ transactions
-- **Search**: Real-time, debounced search across customer name and phone number
-- **Filtering**: Multi-select and range-based filters across 7 dimensions
-- **Sorting**: Three sorting options (Date, Quantity, Customer Name)
-- **Pagination**: Smart pagination with prev/next and direct page navigation
-- **Performance**: Optimized with React memoization and debouncing techniques
+- **🗄️ Database Persistence**: Neon PostgreSQL with Prisma 7 ORM for scalable, type-safe data storage
+- **🔌 API Layer**: RESTful API endpoints (/api/sales) with query parameter support for flexible data retrieval
+- **🌱 Data Seeding**: Hardcoded mock data (250+ transactions) via prisma/seed.ts for testing and development
+- **🔍 Real-time Search**: Debounced search across customer name and phone number fields
+- **🎛️ Advanced Filtering**: Multi-select and range-based filters across 7 dimensions
+- **📊 Dynamic Sorting**: Three sorting options (Date, Quantity, Customer Name)
+- **📄 Smart Pagination**: Server-side pagination with configurable page sizes
+- **⚡ Performance**: Optimized with database indexing, connection pooling, React memoization, and debouncing
+- **📈 Scalability**: Handles large datasets (250+ records) efficiently with server-side processing
+- **🎨 Modern UI**: Custom Tailwind CSS components with responsive design
+- **🔒 Type Safety**: End-to-end TypeScript with Prisma-generated types
 
 ---
 
 ## System Architecture
 
-### High-Level Architecture
+### High-Level Architecture Diagram
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                        Browser (Client)                      │
-├─────────────────────────────────────────────────────────────┤
-│                                                               │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │              Next.js App (React)                      │  │
-│  │                                                        │  │
-│  │  ┌──────────────┐  ┌──────────────┐  ┌───────────┐  │  │
-│  │  │ Presentation │  │   Business   │  │   Data    │  │  │
-│  │  │    Layer     │  │     Logic    │  │   Layer   │  │  │
-│  │  │              │  │              │  │           │  │  │
-│  │  │ Components/  │  │ lib/         │  │ CSV File  │  │  │
-│  │  │ UI Elements  │  │ Services     │  │ (Static)  │  │  │
-│  │  └──────────────┘  └──────────────┘  └───────────┘  │  │
-│  └──────────────────────────────────────────────────────┘  │
-│                                                               │
-└─────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────┐
+│                        Browser (Client)                            │
+├───────────────────────────────────────────────────────────────────┤
+│  ┌────────────────────────────────────────────────────────────┐  │
+│  │              Next.js App (React 19)                         │  │
+│  │                                                              │  │
+│  │  ┌──────────────┐  ┌──────────────┐  ┌────────────────┐   │  │
+│  │  │ Presentation │  │   Business   │  │  API Client    │   │  │
+│  │  │    Layer     │  │     Logic    │  │     Layer      │   │  │
+│  │  │              │  │              │  │                │   │  │
+│  │  │ components/  │  │ hooks/       │  │ lib/           │   │  │
+│  │  │ - SearchBar  │  │ - useDebounce│  │ - apiService   │   │  │
+│  │  │ - FilterPanel│  │              │  │ - dataService  │   │  │
+│  │  │ - TransTable │  │              │  │                │   │  │
+│  │  │ - SortDropdn │  │              │  │                │   │  │
+│  │  │ - Pagination │  │              │  │                │   │  │
+│  │  │ - SummaryCard│  │              │  │                │   │  │
+│  │  └──────────────┘  └──────────────┘  └────────┬───────┘   │  │
+│  └───────────────────────────────────────────────┼───────────┘  │
+└───────────────────────────────────────────────────┼──────────────┘
+                                                     │
+                          HTTP REST API              │
+                          (JSON over HTTPS)          │
+                                                     ▼
+┌───────────────────────────────────────────────────────────────────┐
+│                      Next.js Server (Node.js)                      │
+├───────────────────────────────────────────────────────────────────┤
+│  ┌────────────────────────────────────────────────────────────┐  │
+│  │                   API Routes (/app/api)                     │  │
+│  │                                                              │  │
+│  │  ┌──────────────────────────────────────────────────────┐  │  │
+│  │  │ GET /api/sales                                        │  │  │
+│  │  │                                                        │  │  │
+│  │  │ Query Parameters:                                     │  │  │
+│  │  │ - page: number (default: 1)                          │  │  │
+│  │  │ - limit: number (default: 10000)                     │  │  │
+│  │  │ - customerRegion: string[] (multi-select filter)     │  │  │
+│  │  │ - productCategory: string[] (multi-select filter)    │  │  │
+│  │  │ - orderStatus: string[] (multi-select filter)        │  │  │
+│  │  │                                                        │  │  │
+│  │  │ Response:                                             │  │  │
+│  │  │ {                                                     │  │  │
+│  │  │   success: true,                                      │  │  │
+│  │  │   data: SalesTransaction[],                          │  │  │
+│  │  │   pagination: { page, limit, total, totalPages }     │  │  │
+│  │  │ }                                                     │  │  │
+│  │  └────────────────────┬─────────────────────────────────┘  │  │
+│  └───────────────────────┼────────────────────────────────────┘  │
+│                          │                                        │
+│  ┌───────────────────────▼────────────────────────────────────┐  │
+│  │            Prisma Client (lib/prisma.ts)                   │  │
+│  │                                                             │  │
+│  │  - Singleton pattern with global caching                   │  │
+│  │  - PostgreSQL adapter (@prisma/adapter-pg)                 │  │
+│  │  - Type-safe query builder                                 │  │
+│  │  - Connection pooling with 'pg' package                    │  │
+│  │  - Generated client at: app/generated/prisma/client        │  │
+│  └────────────────────────┬───────────────────────────────────┘  │
+└─────────────────────────┼─────────────────────────────────────┘
+                          │
+                          │ SQL Queries
+                          │ (Prisma Query Engine)
+                          ▼
+┌───────────────────────────────────────────────────────────────────┐
+│              PostgreSQL Database (Neon Serverless)                │
+├───────────────────────────────────────────────────────────────────┤
+│  Database: neondb                                                 │
+│  Host: ep-cold-bar-a404wk3j-pooler.us-east-1.aws.neon.tech       │
+│                                                                   │
+│  ┌────────────────────────────────────────────────────────────┐ │
+│  │  Table: SalesTransaction                                    │ │
+│  │                                                              │ │
+│  │  Fields (28 total):                                         │ │
+│  │  ┌─────────────────────────────────────────────────────┐   │ │
+│  │  │ id              Int        @id @default(autoincrement)│  │ │
+│  │  │ transactionId   Int        @unique                   │  │ │
+│  │  │ date            String                                │  │ │
+│  │  │ customerId      String                                │  │ │
+│  │  │ customerName    String     (indexed)                  │  │ │
+│  │  │ phoneNumber     String     (indexed)                  │  │ │
+│  │  │ gender          String                                │  │ │
+│  │  │ age             Int                                   │  │ │
+│  │  │ customerRegion  String     (indexed)                  │  │ │
+│  │  │ customerType    String                                │  │ │
+│  │  │ productId       String                                │  │ │
+│  │  │ productName     String                                │  │ │
+│  │  │ brand           String                                │  │ │
+│  │  │ productCategory String     (indexed)                  │  │ │
+│  │  │ tags            String[]   (array type)               │  │ │
+│  │  │ quantity        Int                                   │  │ │
+│  │  │ pricePerUnit    Float                                 │  │ │
+│  │  │ discountPercentage Float                              │  │ │
+│  │  │ totalAmount     Float                                 │  │ │
+│  │  │ finalAmount     Float                                 │  │ │
+│  │  │ paymentMethod   String                                │  │ │
+│  │  │ orderStatus     String     (indexed)                  │  │ │
+│  │  │ deliveryType    String                                │  │ │
+│  │  │ storeId         String                                │  │ │
+│  │  │ storeLocation   String                                │  │ │
+│  │  │ salespersonId   String                                │  │ │
+│  │  │ employeeName    String                                │  │ │
+│  │  │ createdAt       DateTime   @default(now())            │  │ │
+│  │  │ updatedAt       DateTime   @updatedAt                 │  │ │
+│  │  └─────────────────────────────────────────────────────┘   │ │
+│  │                                                              │ │
+│  │  Indexes (for query optimization):                          │ │
+│  │  - customerName, phoneNumber (search)                       │ │
+│  │  - date (sorting)                                           │ │
+│  │  - customerRegion, productCategory, orderStatus (filtering)│ │
+│  └────────────────────────────────────────────────────────────┘ │
+│                                                                   │
+│  Seed Data: 250 hardcoded transactions (prisma/seed.ts)          │
+└───────────────────────────────────────────────────────────────────┘
 ```
 
-### Architecture Pattern: Clean Architecture / Layered Architecture
+### Architecture Pattern: Three-Tier Full-Stack with ORM
 
 The application follows a **three-tier architecture**:
 
 1. **Presentation Layer** (`/app` and `/components`)
-   - UI components and pages
-   - User interaction handling
-   - State management with React Hooks
+   - React 19 components with TypeScript
+   - Client-side rendering with Next.js App Router
+   - UI state management with React Hooks (useState, useEffect, useMemo)
+   - Responsive Tailwind CSS styling
+   - Custom debounced search hook
 
-2. **Business Logic Layer** (`/lib`)
-   - Data transformation and processing
-   - Search, filter, sort algorithms
-   - Pure functions with no side effects
+2. **API Layer** (`/app/api` and `/lib`)
+   - RESTful API endpoints (Next.js Route Handlers)
+   - API client service for frontend communication (`lib/apiService.ts`)
+   - Business logic and data transformations (`lib/dataService.ts`)
+   - HTTP client for API communication
+   - Request/response handling
+   - Error handling and retries
 
-3. **Data Layer** (`/public`)
-   - Static CSV file storage
-   - CSV parsing utilities
+3. **API Server Layer** (`/app/api`)
+   - RESTful endpoints
+   - Request validation
+   - Business logic coordination
+   - Response formatting
+
+4. **Data Access Layer** (`/lib/prisma.ts` + Prisma ORM)
+   - Database connection management
+   - Query execution
+   - Data transformation
+   - PostgreSQL database with Neon hosting
 
 ---
 

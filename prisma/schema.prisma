@@ -1,0 +1,51 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+   provider = "prisma-client-js"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model SalesTransaction {
+  id                  Int      @id @default(autoincrement())
+  transactionId       Int      @unique
+  date                String
+  customerId          String
+  customerName        String
+  phoneNumber         String
+  gender              String
+  age                 Int
+  customerRegion      String
+  customerType        String
+  productId           String
+  productName         String
+  brand               String
+  productCategory     String
+  tags                String[] // Array of strings for tags
+  quantity            Int
+  pricePerUnit        Float
+  discountPercentage  Float
+  totalAmount         Float
+  finalAmount         Float
+  paymentMethod       String
+  orderStatus         String
+  deliveryType        String
+  storeId             String
+  storeLocation       String
+  salespersonId       String
+  employeeName        String
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([customerName])
+  @@index([phoneNumber])
+  @@index([date])
+  @@index([customerRegion])
+  @@index([productCategory])
+  @@index([orderStatus])
+  @@map("sales_transactions")
+}
